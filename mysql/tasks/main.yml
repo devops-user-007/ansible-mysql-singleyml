@@ -1,0 +1,57 @@
+---
+# tasks file for mysql
+
+- name: Check if MySql is installed
+  command: rpm -qa mysql-server
+  register: rpm_mysql_installed
+
+- name: Install MySql
+  yum:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - MySQL-python
+    - mysql-server
+    - python-pip
+  when: rpm_mysql_installed.stdout.find('is not installed') != -1
+  ignore_errors: true
+
+- name: Create .my.cnf file
+  template:
+    src: my.cnf.j2
+    dest: ~/.my.cnf
+    owner: root
+    mode: 0775
+
+- name: Set root password
+  mysql_user:
+    name: root
+    password: "{{ mysql_root_password }}"
+  with_items:
+    - "{{ ansible_hostname }}"
+    - 127.0.0.1
+    - ::1
+    - localhost
+
+- name: Delete default user
+  mysql_user:
+    user: "" 
+    state: absent
+
+- name: Remove the test database
+  mysql_db:
+    name: test
+    state: absent
+  ignore_errors: true
+
+- name: Create MyBlog DB
+  mysql_db: 
+    name: myblogdb 
+    state: present
+
+- name: Create MyBlog User
+  mysql_user: 
+    name: myblog_user 
+    password: password
+    priv: myblogdb.*:ALL
+    state: present
